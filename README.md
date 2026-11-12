@@ -30,7 +30,7 @@ stack.
 ## Using it
 
 Build on the workspace image (`ghcr.io/aviator2276/wpilib-workspace:2026`,
-built by CI from `images/Dockerfile`) and add the module to the template:
+linux/amd64, built by CI from `images/Dockerfile`) and add the module to the template:
 
 ```tf
 module "wpilib_sim" {

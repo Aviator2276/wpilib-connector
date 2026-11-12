@@ -13,7 +13,7 @@
 | Image | `ci/run-in-image.sh` | Docker and a built image | Runs the module script, a robot, the end-to-end suite and the vendor matrix inside the image |
 
 `ci/run-in-image.sh` is the one command that exercises everything together,
-and what CI runs on both architectures.
+and what CI runs on the linux/amd64 image.
 
 ## End to end
 
@@ -44,13 +44,14 @@ nothing about the web sim.
 
 - `vendor`: every Sim GUI device type, Phoenix 6, REVLib, Studica navX and a
   `CameraServer` stream. Runs on x86-64 and arm64.
-- `photon`: adds a PhotonVision simulated camera. x86-64 only.
+- `photon`: adds a PhotonVision simulated camera. x86-64 only (PhotonLib
+  publishes no arm64 desktop natives).
 
 ## Vendor matrix
 
 Each directory in `vendor-matrix/libs/` has the library's vendordep, a Java
 snippet constructing its devices, and the names expected in the GUI. Covered:
-Phoenix 6, REVLib, Studica, PhotonLib (x86-64). The other 18 libraries in
+Phoenix 6, REVLib, Studica, PhotonLib (skipped on arm64 hosts). The other 18 libraries in
 WPILib's 2026 list are not covered; adding one is a new directory.
 
 ## Visual parity

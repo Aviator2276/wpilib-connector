@@ -23,7 +23,7 @@ module "wpilib_sim" {
 
 ## Requirements
 
-- The workspace image must provide `/opt/wpilib-websim` (the web app, the GUI bundle, the daemon and the HAL bridge). Use `ghcr.io/aviator2276/wpilib-workspace:2026` or build `images/Dockerfile` from the [source repository](https://github.com/Aviator2276/wpilib-connector). The start script fails with a clear message otherwise.
+- The workspace image must provide `/opt/wpilib-websim` (the web app, the GUI bundle, the daemon and the HAL bridge). Use `ghcr.io/aviator2276/wpilib-workspace:2026` (linux/amd64) or build `images/Dockerfile` from the [source repository](https://github.com/Aviator2276/wpilib-connector). The start script fails with a clear message otherwise.
 - If the template uses the code-server module, do not list `wpilibsuite.vscode-wpilib` in its extensions. Open VSX carries a version too old to build current projects; this module installs the pinned VSIX from the image.
 - Chrome or another browser with WebGL2.
 
@@ -77,7 +77,6 @@ module "wpilib_sim" {
 - **Cameras.** Streams the robot publishes (a PhotonVision simulated camera, `CameraServer`) are shown in a side panel and on a camera wall; the Sim GUI itself has no camera viewer.
 - **One command without the web simulator:** `WPILIB_WEBSIM=0 ./gradlew simulateJava`.
 - **Shared network namespaces:** two simulations at once still collide on NetworkTables port 5810.
-- **PhotonVision** simulation needs an x86-64 workspace; PhotonLib publishes no arm64 desktop build.
 
 ## Upgrading from 1.x
 
