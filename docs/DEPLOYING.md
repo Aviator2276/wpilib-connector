@@ -30,7 +30,9 @@ Both subdomain and path-based apps work; path mode needs no bounce page.
 
 ## Measured
 
-On an Apple-silicon host, Linux arm64 containers, WPILib 2026.2.1, the
+The deployment target is linux/amd64. These numbers were taken on an
+Apple-silicon host in Linux arm64 containers (the amd64 image was run there
+too, but under emulation, which makes timings meaningless), WPILib 2026.2.1, the
 `vendor` test robot (Phoenix 6 TalonFX + CANcoder + Pigeon 2, SPARK MAX, navX,
 every roboRIO device type, one 320x240 camera stream). Browser numbers are
 headless Chromium with **software** WebGL (SwiftShader), so they are an upper
@@ -49,7 +51,7 @@ bound for the rendering share; nothing here was measured on a Chromebook.
 | `websimd`, one tab, stock WebSocket mode | 4% of a core, 59 MB resident |
 | Robot JVM, headless | about 13% of a core |
 | Visual difference from the native GUI, same robot and layout | 0.14% of pixels beyond 5/255 (text antialiasing) |
-| Image size | 4.15 GB (arm64) |
+| Image size | 4.15 GB unpacked (arm64 build; the amd64 build is similar) |
 
 Against the plan's targets: the tab's idle cost and the bridge-mode daemon are
 inside them. The stock-WebSocket daemon is over its 3% target and at the edge
@@ -64,7 +66,10 @@ Brotli target; the JS glue is not under 80 KB.
   clock; layout files written to the project; camera stream; auto-disable
   after the last tab closes (seen in the robot's own log); the app under a
   path prefix through a prefix-stripping proxy.
-- Phoenix 6, REVLib and Studica devices in the GUI's device list.
+- Phoenix 6, REVLib and Studica devices in the GUI's device list, and
+  PhotonLib's two simulated camera streams in the camera list.
+- All of the above on the linux/amd64 image (`tests/ci/run-in-image.sh`, run
+  under emulation on an arm64 host) as well as on a native arm64 build.
 - The robot JVM starts with no X or Mesa libraries installed; `libatomic1` is
   the only extra native dependency.
 - HiDPI rendering at device pixel ratio 2.
@@ -81,19 +86,21 @@ Brotli target; the JS glue is not under 80 KB.
 - **WPILib: Simulate Robot Code** from VS Code. The Gradle task it runs
   (`simulateExternalJavaRelease`) is exercised by the image build, which checks
   that the bridge is in its extension list.
-- The amd64 image and bridge. CI builds both; only arm64 was run here.
+- The amd64 image on native amd64 hardware; it was built and tested here
+  under emulation only. CI does both natively.
 - A real Chromebook, touch input, a two-hour soak.
 - Uploading a file from the student's computer through the file picker,
   workspace open / save to another folder, gamepads and clipboard in a
   browser. They are implemented; the file endpoints have daemon tests.
-- 18 of the 22 libraries in WPILib's 2026 vendor list.
+- 18 of the 22 libraries in WPILib's 2026 vendor list, and PhotonVision's
+  video seen in a browser (the matrix checks that its streams are listed).
 
 ## Known limits
 
-- **PhotonVision needs x86-64.** PhotonLib publishes desktop native code for
-  x86-64 only; on an arm64 workspace constructing a `PhotonCamera` ends the
-  robot program. This is the vendor's packaging, and it applies to the native
-  GUI as well. WPILib `CameraServer` streams work on both architectures.
+- **PhotonVision needs x86-64.** Not a limit on the linux/amd64 deployment,
+  but worth knowing if an arm64 image is ever built: PhotonLib publishes
+  desktop native code for x86-64 only, so on arm64 constructing a
+  `PhotonCamera` ends the robot program, with or without the web GUI.
 - **Java only.** C++ and Python robot projects are not handled by the init
   script.
 - **Hidden tabs.** Browsers stop animation frames for a hidden tab, and the
