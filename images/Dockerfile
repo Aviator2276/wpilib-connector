@@ -13,9 +13,11 @@
 # There is no X server, VNC, Mesa or window manager in this image: the GUI
 # runs in the user's browser.
 #
-# Build from the repository root (multi-arch):
-#   docker buildx build -f images/Dockerfile --platform linux/amd64,linux/arm64 \
+# Build from the repository root. The deployment target is linux/amd64:
+#   docker buildx build -f images/Dockerfile --platform linux/amd64 \
 #     -t <registry>/wpilib-workspace:2026 --push .
+# Nothing here is amd64-specific; an arm64 build works too, except that
+# PhotonLib publishes no arm64 desktop natives.
 
 ARG SEASON=2026
 ARG EMSDK_VERSION=4.0.15

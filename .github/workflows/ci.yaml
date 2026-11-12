@@ -65,12 +65,9 @@ jobs:
             wasm/dist/*/bundle.json
           retention-days: 7
 
-  # The native HAL bridge, on both architectures workspaces run on.
+  # The native HAL bridge, for linux x86-64 (what the workspaces run on).
   bridge:
-    strategy:
-      matrix:
-        runner: [ubuntu-latest, ubuntu-24.04-arm]
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: bash bridge/build.sh 2026
