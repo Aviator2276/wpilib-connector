@@ -64,6 +64,13 @@ in_ws 'grep -q "Robot program starting" /tmp/sim.log' || { in_ws 'tail -n 40 /tm
 in_ws 'grep -q "Web Sim Bridge Initialized" /tmp/sim.log' || { echo "the HAL bridge did not load" >&2; exit 1; }
 # no display, no native GUI
 in_ws '! grep -q "Simulator GUI Initializ" /tmp/sim.log'
+# The robot logs every NetworkTables connection. With no browser open the
+# daemon holds exactly one (camera discovery); detecting the robot must not
+# add a connection per second to the student's console.
+sleep 15
+nt_conns="$(in_ws 'grep -c "Got a NT4 connection" /tmp/sim.log' || true)"
+echo "NT connections in the robot log after 15 s idle: $nt_conns"
+[ "$nt_conns" -le 2 ] || { echo "the daemon is probing NetworkTables by connecting" >&2; exit 1; }
 
 echo "==> end-to-end suite"
 in_ws 'cd /tmp/w/tests/e2e && ROBOT_LOG=/tmp/sim.log EXPECT_BRIDGE=1 node run.mjs'
