@@ -1,0 +1,28 @@
+# build output and caches
+wasm/.cache/
+wasm/dist/
+web/node_modules/
+web/dist/
+daemon/.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+build/
+.gradle/
+.terraform/
+*.tfstate*
+.terraform.lock.hcl
+node_modules/
+.DS_Store
+
+# agent instructions are local only
+CLAUDE.md
+AGENTS.md
+.claude/
+
+# bridge build output
+bridge/.cache/
+bridge/dist/
+tests/e2e/out/
+tests/e2e/node_modules/

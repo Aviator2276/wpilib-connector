@@ -1,0 +1,8 @@
+# SimDevice names the library creates, one per line ("device:" lines), and
+# camera names it publishes ("camera:" lines).
+device: CANMotor:Talon FX (v6)[1]
+device: CANEncoder:Talon FX (v6)[1]/Rotor Sensor
+device: CANDIO:Talon FX (v6)[1]/Fwd Limit
+device: CANDIO:Talon FX (v6)[1]/Rev Limit
+device: CANEncoder:CANcoder (v6)[2]
+device: CANGyro:Pigeon 2 (v6)[3]

@@ -1,0 +1,197 @@
+// The HAL device table shared by both ends of the web sim:
+//
+//   - the mirror HAL in the browser (wasm/src/mirror*.cpp), which applies
+//     these values to its local sim HAL and sends GUI edits back, and
+//   - the native bridge in the robot process (bridge/), which reports them.
+//
+// Every row names a real HALSIM accessor triple, so a row that drifts from
+// the HAL headers fails to compile on both sides:
+//
+//   HALSIM_Set<mod><name>(...)   HALSIM_Register<mod><name>Callback(...)
+//
+// Row forms (X-macros; define before including, they are #undef'd at the end):
+//
+//   WEBSIM_CLASS(cls, wsType, count)
+//       Starts a device class. `wsType` is its "type" in the stock halsim_ws
+//       JSON protocol (nullptr when that protocol has no such message).
+//       `count` is the number of instances; 1 with FIELD0 rows for singletons.
+//
+//   WEBSIM_FIELD(cls, mod, name, haltype, ctype, dir, wsKey)
+//       accessor(index, value)
+//   WEBSIM_FIELD0(cls, mod, name, haltype, ctype, dir, wsKey)
+//       accessor(value)                      -- singleton, no index
+//   WEBSIM_FIELD2(cls, mod, name, haltype, ctype, dir, wsKey, channels)
+//       accessor(index, channel, value)      -- wire index = index*256+channel
+//
+//   haltype  member of HAL_Value's union: boolean, double, int, long, enum
+//   ctype    C type the setter takes
+//   dir      OUT   written by the robot program, read-only in the GUI
+//            IN    an input to the robot program, editable in the GUI
+//            BIDIR both
+//   wsKey    data key in the halsim_ws JSON protocol, or nullptr if the stock
+//            protocol does not carry the value (bridge only)
+//
+// Classes and fields are numbered by position in this file. Both ends are
+// always built from the same copy and exchange a hash of it on connect, so
+// rows may be added or reordered freely.
+
+// ------------------------------------------------------------ DriverStation
+WEBSIM_CLASS(DriverStation, "DriverStation", 1)
+WEBSIM_FIELD0(DriverStation, DriverStation, Enabled, boolean, HAL_Bool, IN, ">enabled")
+WEBSIM_FIELD0(DriverStation, DriverStation, Autonomous, boolean, HAL_Bool, IN, ">autonomous")
+WEBSIM_FIELD0(DriverStation, DriverStation, Test, boolean, HAL_Bool, IN, ">test")
+WEBSIM_FIELD0(DriverStation, DriverStation, EStop, boolean, HAL_Bool, IN, ">estop")
+WEBSIM_FIELD0(DriverStation, DriverStation, FmsAttached, boolean, HAL_Bool, IN, ">fms")
+WEBSIM_FIELD0(DriverStation, DriverStation, DsAttached, boolean, HAL_Bool, IN, ">ds")
+// JSON carries the station as a string (">station"); handled by the codec.
+WEBSIM_FIELD0(DriverStation, DriverStation, AllianceStationId, enum, HAL_AllianceStationID, IN, nullptr)
+WEBSIM_FIELD0(DriverStation, DriverStation, MatchTime, double, double, IN, ">match_time")
+
+// ------------------------------------------------------------------ RoboRIO
+WEBSIM_CLASS(RoboRio, "RoboRIO", 1)
+WEBSIM_FIELD0(RoboRio, RoboRio, FPGAButton, boolean, HAL_Bool, IN, ">fpga_button")
+WEBSIM_FIELD0(RoboRio, RoboRio, VInVoltage, double, double, IN, ">vin_voltage")
+WEBSIM_FIELD0(RoboRio, RoboRio, VInCurrent, double, double, IN, ">vin_current")
+WEBSIM_FIELD0(RoboRio, RoboRio, UserVoltage6V, double, double, IN, ">6v_voltage")
+WEBSIM_FIELD0(RoboRio, RoboRio, UserCurrent6V, double, double, IN, ">6v_current")
+WEBSIM_FIELD0(RoboRio, RoboRio, UserActive6V, boolean, HAL_Bool, IN, ">6v_active")
+WEBSIM_FIELD0(RoboRio, RoboRio, UserFaults6V, int, int32_t, IN, ">6v_faults")
+WEBSIM_FIELD0(RoboRio, RoboRio, UserVoltage5V, double, double, IN, ">5v_voltage")
+WEBSIM_FIELD0(RoboRio, RoboRio, UserCurrent5V, double, double, IN, ">5v_current")
+WEBSIM_FIELD0(RoboRio, RoboRio, UserActive5V, boolean, HAL_Bool, IN, ">5v_active")
+WEBSIM_FIELD0(RoboRio, RoboRio, UserFaults5V, int, int32_t, IN, ">5v_faults")
+WEBSIM_FIELD0(RoboRio, RoboRio, UserVoltage3V3, double, double, IN, ">3v3_voltage")
+WEBSIM_FIELD0(RoboRio, RoboRio, UserCurrent3V3, double, double, IN, ">3v3_current")
+WEBSIM_FIELD0(RoboRio, RoboRio, UserActive3V3, boolean, HAL_Bool, IN, ">3v3_active")
+WEBSIM_FIELD0(RoboRio, RoboRio, UserFaults3V3, int, int32_t, IN, ">3v3_faults")
+WEBSIM_FIELD0(RoboRio, RoboRio, BrownoutVoltage, double, double, IN, nullptr)
+WEBSIM_FIELD0(RoboRio, RoboRio, TeamNumber, int, int32_t, IN, nullptr)
+WEBSIM_FIELD0(RoboRio, RoboRio, CPUTemp, double, double, IN, nullptr)
+WEBSIM_FIELD0(RoboRio, RoboRio, RadioLEDState, enum, HAL_RadioLEDState, OUT, nullptr)
+
+// ---------------------------------------------------------------------- PWM
+WEBSIM_CLASS(PWM, "PWM", HAL_GetNumPWMChannels())
+WEBSIM_FIELD(PWM, PWM, Initialized, boolean, HAL_Bool, OUT, "<init")
+WEBSIM_FIELD(PWM, PWM, Speed, double, double, OUT, "<speed")
+WEBSIM_FIELD(PWM, PWM, Position, double, double, OUT, "<position")
+WEBSIM_FIELD(PWM, PWM, PulseMicrosecond, int, int32_t, OUT, "<raw")
+WEBSIM_FIELD(PWM, PWM, PeriodScale, int, int32_t, OUT, "<period_scale")
+WEBSIM_FIELD(PWM, PWM, ZeroLatch, boolean, HAL_Bool, OUT, "<zero_latch")
+
+// ---------------------------------------------------------------------- DIO
+WEBSIM_CLASS(DIO, "DIO", HAL_GetNumDigitalChannels())
+WEBSIM_FIELD(DIO, DIO, Initialized, boolean, HAL_Bool, OUT, "<init")
+WEBSIM_FIELD(DIO, DIO, IsInput, boolean, HAL_Bool, OUT, "<input")
+WEBSIM_FIELD(DIO, DIO, Value, boolean, HAL_Bool, BIDIR, "<>value")
+WEBSIM_FIELD(DIO, DIO, PulseLength, double, double, OUT, "<pulse_length")
+WEBSIM_FIELD(DIO, DIO, FilterIndex, int, int32_t, OUT, nullptr)
+
+// ------------------------------------------------------------- Analog input
+WEBSIM_CLASS(AnalogIn, "AI", HAL_GetNumAnalogInputs())
+WEBSIM_FIELD(AnalogIn, AnalogIn, Initialized, boolean, HAL_Bool, OUT, "<init")
+WEBSIM_FIELD(AnalogIn, AnalogIn, AverageBits, int, int32_t, OUT, "<avg_bits")
+WEBSIM_FIELD(AnalogIn, AnalogIn, OversampleBits, int, int32_t, OUT, "<oversample_bits")
+WEBSIM_FIELD(AnalogIn, AnalogIn, Voltage, double, double, IN, ">voltage")
+WEBSIM_FIELD(AnalogIn, AnalogIn, AccumulatorInitialized, boolean, HAL_Bool, OUT, "<accum_init")
+WEBSIM_FIELD(AnalogIn, AnalogIn, AccumulatorValue, long, int64_t, IN, ">accum_value")
+WEBSIM_FIELD(AnalogIn, AnalogIn, AccumulatorCount, long, int64_t, IN, ">accum_count")
+WEBSIM_FIELD(AnalogIn, AnalogIn, AccumulatorCenter, int, int32_t, OUT, "<accum_center")
+WEBSIM_FIELD(AnalogIn, AnalogIn, AccumulatorDeadband, int, int32_t, OUT, "<accum_deadband")
+
+// ------------------------------------------------------------ Analog output
+WEBSIM_CLASS(AnalogOut, "AO", HAL_GetNumAnalogOutputs())
+WEBSIM_FIELD(AnalogOut, AnalogOut, Initialized, boolean, HAL_Bool, OUT, "<init")
+WEBSIM_FIELD(AnalogOut, AnalogOut, Voltage, double, double, OUT, "<voltage")
+
+// -------------------------------------------------------------- Analog gyro
+WEBSIM_CLASS(AnalogGyro, nullptr, HAL_GetNumAccumulators())
+WEBSIM_FIELD(AnalogGyro, AnalogGyro, Initialized, boolean, HAL_Bool, OUT, nullptr)
+WEBSIM_FIELD(AnalogGyro, AnalogGyro, Angle, double, double, IN, nullptr)
+WEBSIM_FIELD(AnalogGyro, AnalogGyro, Rate, double, double, IN, nullptr)
+
+// --------------------------------------------------- Built-in accelerometer
+// JSON: type "Accel", device "BuiltInAccel"; "<range" is in G (codec).
+WEBSIM_CLASS(Accelerometer, "Accel", 1)
+WEBSIM_FIELD(Accelerometer, Accelerometer, Active, boolean, HAL_Bool, OUT, "<init")
+WEBSIM_FIELD(Accelerometer, Accelerometer, Range, enum, HAL_AccelerometerRange, OUT, nullptr)
+WEBSIM_FIELD(Accelerometer, Accelerometer, X, double, double, IN, ">x")
+WEBSIM_FIELD(Accelerometer, Accelerometer, Y, double, double, IN, ">y")
+WEBSIM_FIELD(Accelerometer, Accelerometer, Z, double, double, IN, ">z")
+
+// --------------------------------------------------- Digital PWM (dPWM out)
+WEBSIM_CLASS(DigitalPWM, "dPWM", HAL_GetNumDigitalPWMOutputs())
+WEBSIM_FIELD(DigitalPWM, DigitalPWM, Initialized, boolean, HAL_Bool, OUT, "<init")
+WEBSIM_FIELD(DigitalPWM, DigitalPWM, DutyCycle, double, double, OUT, "<duty_cycle")
+WEBSIM_FIELD(DigitalPWM, DigitalPWM, Pin, int, int32_t, OUT, "<dio_pin")
+
+// --------------------------------------------------------- Duty cycle input
+WEBSIM_CLASS(DutyCycle, nullptr, HAL_GetNumDutyCycles())
+WEBSIM_FIELD(DutyCycle, DutyCycle, Initialized, boolean, HAL_Bool, OUT, nullptr)
+WEBSIM_FIELD(DutyCycle, DutyCycle, Frequency, int, int32_t, IN, nullptr)
+WEBSIM_FIELD(DutyCycle, DutyCycle, Output, double, double, IN, nullptr)
+
+// ------------------------------------------------------------------ Encoder
+// The A/B channel numbers have no change callback; both codecs send them
+// alongside Initialized.
+WEBSIM_CLASS(Encoder, "Encoder", HAL_GetNumEncoders())
+WEBSIM_FIELD(Encoder, Encoder, Initialized, boolean, HAL_Bool, OUT, "<init")
+WEBSIM_FIELD(Encoder, Encoder, Count, int, int32_t, IN, ">count")
+WEBSIM_FIELD(Encoder, Encoder, Period, double, double, IN, ">period")
+WEBSIM_FIELD(Encoder, Encoder, Reset, boolean, HAL_Bool, BIDIR, nullptr)
+WEBSIM_FIELD(Encoder, Encoder, MaxPeriod, double, double, OUT, nullptr)
+WEBSIM_FIELD(Encoder, Encoder, Direction, boolean, HAL_Bool, IN, nullptr)
+WEBSIM_FIELD(Encoder, Encoder, ReverseDirection, boolean, HAL_Bool, OUT, "<reverse_direction")
+WEBSIM_FIELD(Encoder, Encoder, SamplesToAverage, int, int32_t, OUT, "<samples_to_avg")
+WEBSIM_FIELD(Encoder, Encoder, DistancePerPulse, double, double, OUT, nullptr)
+
+// -------------------------------------------------------------------- Relay
+WEBSIM_CLASS(Relay, "Relay", HAL_GetNumRelayHeaders())
+WEBSIM_FIELD(Relay, Relay, InitializedForward, boolean, HAL_Bool, OUT, "<init_fwd")
+WEBSIM_FIELD(Relay, Relay, InitializedReverse, boolean, HAL_Bool, OUT, "<init_rev")
+WEBSIM_FIELD(Relay, Relay, Forward, boolean, HAL_Bool, OUT, "<fwd")
+WEBSIM_FIELD(Relay, Relay, Reverse, boolean, HAL_Bool, OUT, "<rev")
+
+// ----------------------------------------------------------------- CTRE PCM
+WEBSIM_CLASS(CTREPCM, "CTREPCM", HAL_GetNumCTREPCMModules())
+WEBSIM_FIELD(CTREPCM, CTREPCM, Initialized, boolean, HAL_Bool, OUT, "<init")
+WEBSIM_FIELD(CTREPCM, CTREPCM, CompressorOn, boolean, HAL_Bool, IN, ">on")
+WEBSIM_FIELD(CTREPCM, CTREPCM, ClosedLoopEnabled, boolean, HAL_Bool, OUT, "<closed_loop")
+WEBSIM_FIELD(CTREPCM, CTREPCM, PressureSwitch, boolean, HAL_Bool, IN, ">pressure_switch")
+WEBSIM_FIELD(CTREPCM, CTREPCM, CompressorCurrent, double, double, IN, ">current")
+
+// JSON: type "Solenoid", device "<module>,<channel>".
+WEBSIM_CLASS(CTREPCMSolenoid, "Solenoid", HAL_GetNumCTREPCMModules())
+WEBSIM_FIELD2(CTREPCMSolenoid, CTREPCM, SolenoidOutput, boolean, HAL_Bool, OUT, "<output", HAL_GetNumCTRESolenoidChannels())
+
+// ------------------------------------------------- REV Pneumatic Hub (bridge)
+WEBSIM_CLASS(REVPH, nullptr, HAL_GetNumREVPHModules())
+WEBSIM_FIELD(REVPH, REVPH, Initialized, boolean, HAL_Bool, OUT, nullptr)
+WEBSIM_FIELD(REVPH, REVPH, CompressorOn, boolean, HAL_Bool, IN, nullptr)
+WEBSIM_FIELD(REVPH, REVPH, CompressorConfigType, enum, HAL_REVPHCompressorConfigType, OUT, nullptr)
+WEBSIM_FIELD(REVPH, REVPH, PressureSwitch, boolean, HAL_Bool, IN, nullptr)
+WEBSIM_FIELD(REVPH, REVPH, CompressorCurrent, double, double, IN, nullptr)
+
+WEBSIM_CLASS(REVPHSolenoid, nullptr, HAL_GetNumREVPHModules())
+WEBSIM_FIELD2(REVPHSolenoid, REVPH, SolenoidOutput, boolean, HAL_Bool, OUT, nullptr, HAL_GetNumREVPHChannels())
+
+// ------------------------------------------------ Power distribution (bridge)
+WEBSIM_CLASS(PowerDistribution, nullptr, HAL_GetNumREVPDHModules())
+WEBSIM_FIELD(PowerDistribution, PowerDistribution, Initialized, boolean, HAL_Bool, OUT, nullptr)
+WEBSIM_FIELD(PowerDistribution, PowerDistribution, Temperature, double, double, IN, nullptr)
+WEBSIM_FIELD(PowerDistribution, PowerDistribution, Voltage, double, double, IN, nullptr)
+
+WEBSIM_CLASS(PowerDistributionChannel, nullptr, HAL_GetNumREVPDHModules())
+WEBSIM_FIELD2(PowerDistributionChannel, PowerDistribution, Current, double, double, IN, nullptr, HAL_GetNumREVPDHChannels())
+
+// ---------------------------------------------------------- Addressable LED
+// The pixel data is an array and is carried by a dedicated message.
+WEBSIM_CLASS(AddressableLED, "AddressableLED", HAL_GetNumAddressableLEDs())
+WEBSIM_FIELD(AddressableLED, AddressableLED, Initialized, boolean, HAL_Bool, OUT, "<init")
+WEBSIM_FIELD(AddressableLED, AddressableLED, OutputPort, int, int32_t, OUT, "<output_port")
+WEBSIM_FIELD(AddressableLED, AddressableLED, Length, int, int32_t, OUT, "<length")
+WEBSIM_FIELD(AddressableLED, AddressableLED, Running, boolean, HAL_Bool, OUT, "<running")
+
+#undef WEBSIM_CLASS
+#undef WEBSIM_FIELD
+#undef WEBSIM_FIELD0
+#undef WEBSIM_FIELD2

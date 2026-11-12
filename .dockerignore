@@ -1,0 +1,13 @@
+# The image build uses the repository root as its context.
+.git
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/dist
+**/.cache
+**/build
+**/.gradle
+**/.terraform
+tests/e2e/out

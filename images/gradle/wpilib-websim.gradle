@@ -1,0 +1,78 @@
+// WPILib Web Sim: Gradle init script (installed to ~/.gradle/init.d/).
+//
+// Applies to every Gradle build in the workspace, and does something only in
+// GradleRIO projects: it turns the native Sim GUI extension off (there is no
+// display to draw on) and turns on the extension that feeds the web GUI. No
+// file in the student's project is touched.
+//
+// Both launch paths honour this, because both take the extension list from
+// GradleRIO's `defaultEnabled` flags:
+//   ./gradlew simulateJava            sets HALSIM_EXTENSIONS from them
+//   "WPILib: Simulate Robot Code"     reads them from build/sim/*.json
+//
+// Opt out for one command:  WPILIB_WEBSIM=0 ./gradlew simulateJava
+//
+// Two extensions feed the web GUI:
+//   "Web Sim Bridge"         halsim_webbridge, from the local Maven repository
+//                            baked into the image; complete (timing, power
+//                            distribution, pneumatic hub, typed SimValues).
+//   "Sim Websockets Server"  WPILib's own halsim_ws_server; the fallback when
+//                            no bridge was built for the project's WPILib
+//                            version or this CPU architecture.
+// Both are enabled when the bridge is available: the stock server does no
+// work until something connects to it, and the daemon prefers the bridge.
+// WPILIB_WEBSIM_BRIDGE=0 leaves the bridge out.
+
+def websimEnabled = System.getenv('WPILIB_WEBSIM') != '0'
+def websimBridge = System.getenv('WPILIB_WEBSIM_BRIDGE') != '0'
+def websimMaven = new File(System.getenv('WPILIB_WEBSIM_MAVEN') ?: '/opt/wpilib-websim/maven')
+
+def websimPlatform = {
+    def os = System.getProperty('os.name').toLowerCase()
+    def arch = System.getProperty('os.arch').toLowerCase()
+    if (!os.contains('linux')) {
+        return null
+    }
+    return (arch == 'aarch64' || arch == 'arm64') ? 'linuxarm64' : 'linuxx86-64'
+}
+
+if (websimEnabled) {
+    allprojects { p ->
+        // 2026 and earlier: edu.wpi.first.GradleRIO; 2027 onward: org.wpilib.GradleRIO
+        ['edu.wpi.first.GradleRIO', 'org.wpilib.GradleRIO'].each { pluginId ->
+            p.plugins.withId(pluginId) {
+                p.afterEvaluate {
+                    def sim = p.extensions.findByName('wpi')?.sim
+                    if (sim == null) {
+                        return
+                    }
+                    def exts = sim.halExtensions
+                    def wsServer = exts.findByName('Sim Websockets Server') ?: sim.addWebsocketsServer()
+
+                    // The bridge is built per WPILib version and architecture.
+                    def version = wsServer.version.getOrNull()
+                    def platform = websimPlatform()
+                    def bridgeZip = (version && platform) ? new File(websimMaven,
+                        "websim/halsim/halsim_webbridge/${version}/halsim_webbridge-${version}-${platform}.zip") : null
+                    if (websimBridge && bridgeZip?.isFile() && exts.findByName('Web Sim Bridge') == null) {
+                        p.repositories.maven {
+                            name = 'wpilibWebSim'
+                            url = websimMaven.toURI()
+                            content { includeGroup 'websim.halsim' }
+                        }
+                        sim.addDep('Web Sim Bridge', 'websim.halsim', 'halsim_webbridge')
+                    }
+
+                    exts.all { ext ->
+                        if (ext.name == 'Sim GUI') {
+                            ext.defaultEnabled.set(false)
+                        }
+                        if (ext.name == 'Sim Websockets Server' || ext.name == 'Web Sim Bridge') {
+                            ext.defaultEnabled.set(true)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

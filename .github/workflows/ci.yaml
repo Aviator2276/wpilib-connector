@@ -1,0 +1,135 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  daemon:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: daemon
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest -q
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run test
+      - run: bun run build
+
+  # Compiles the Sim GUI from the pinned allwpilib tag. A patch that no
+  # longer applies, or an upstream file the removal list expects and does not
+  # find, fails here.
+  wasm:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        season: ["2026"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: wasm/.cache
+          key: wasm-${{ matrix.season }}-${{ hashFiles('wasm/seasons/*.env') }}-${{ github.sha }}
+          restore-keys: wasm-${{ matrix.season }}-${{ hashFiles('wasm/seasons/*.env') }}-
+      - name: build bundle
+        run: |
+          mkdir -p wasm/.cache wasm/dist && chmod -R a+rwX wasm/.cache wasm/dist
+          bash wasm/build.sh ${{ matrix.season }}
+      - name: compressed size
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq brotli
+          for f in wasm/dist/*/simgui.wasm wasm/dist/*/simgui.js; do
+            printf '%s  raw %s  brotli %s\n' "$f" "$(stat -c %s "$f")" "$(brotli -q 11 -c "$f" | wc -c)"
+          done | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: simgui-${{ matrix.season }}
+          path: |
+            wasm/dist/*/simgui.js
+            wasm/dist/*/simgui.wasm
+            wasm/dist/*/bundle.json
+          retention-days: 7
+
+  # The native HAL bridge, on both architectures workspaces run on.
+  bridge:
+    strategy:
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash bridge/build.sh 2026
+      - run: ls -l bridge/dist/maven/websim/halsim/halsim_webbridge/*/
+
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: registry/aviator2277/modules/wpilib-sim
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.*"
+      - name: fmt
+        run: terraform fmt -check -diff
+      - name: init
+        run: terraform init -backend=false
+      - name: validate
+        run: terraform validate
+      - name: test
+        run: terraform test -verbose
+      - name: shellcheck
+        working-directory: ${{ github.workspace }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          # SC1083/SC2154/SC2269: ${VAR} tokens are terraform templatefile
+          # substitutions, not shell self-assignments. SC2012: controlled glob.
+          shellcheck -e SC1083,SC2154,SC2269,SC2012 registry/aviator2277/modules/wpilib-sim/run.sh
+          # -S warning: the remaining notes are about deliberate single
+          # quoting of text that is evaluated inside the container.
+          shellcheck -S warning wasm/build.sh bridge/build.sh tests/robots/make-project.sh \
+            tests/parity/native.sh tests/vendor-matrix/run.sh tests/ci/run-in-image.sh
+
+  # Runs the module's bun tests inside the coder/registry harness (which provides
+  # the ~test utilities). Needs Docker with --network=host: native on this runner.
+  bun-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: this
+      - uses: actions/checkout@v4
+        with:
+          repository: coder/registry
+          path: registry
+      - uses: oven-sh/setup-bun@v2
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.*"
+          terraform_wrapper: false
+      - name: install module into harness
+        run: |
+          mkdir -p registry/registry/aviator2277/modules
+          cp -r this/registry/aviator2277/modules/wpilib-sim registry/registry/aviator2277/modules/
+      - name: bun install
+        working-directory: registry
+        run: bun install
+      - name: bun test
+        working-directory: registry
+        run: bun test registry/aviator2277/modules/wpilib-sim/main.test.ts
