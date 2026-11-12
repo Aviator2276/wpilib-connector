@@ -1,0 +1,13 @@
+{
+  "name": "wpilib-websim-e2e",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "test": "node run.mjs",
+    "shot": "node shot.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.50.0"
+  }
+}

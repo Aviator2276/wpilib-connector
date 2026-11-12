@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/*
+ * Shell colours are sampled from the Glass theme so the surrounding UI does
+ * not clash with the canvas. Shell text uses the system UI font on purpose:
+ * it never imitates the GUI's ProggyDotted, so a shell element cannot be
+ * mistaken for a broken Glass window.
+ */
+@theme {
+  --color-glass-backdrop: #738c99; /* clear colour */
+  --color-glass-window: #111517; /* window background */
+  --color-glass-menubar: #555675; /* main menu bar */
+  --color-glass-title: #5659a0; /* window title bar */
+  --color-glass-header: #373a75; /* collapsing header / selection */
+  --color-glass-accent: #6a6acb; /* active table header */
+  --color-glass-text: #e6e8ee;
+  --color-glass-muted: #9aa3b2;
+  --color-ok: #4ade80;
+  --color-wait: #fbbf24;
+  --color-bad: #f87171;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--color-glass-backdrop);
+  color: var(--color-glass-text);
+  font-family: var(--font-sans);
+}
+
+/* The Sim GUI canvas: sized by its host element, never styled or wrapped. */
+#simgui-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  touch-action: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

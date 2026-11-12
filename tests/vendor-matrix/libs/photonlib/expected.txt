@@ -1,0 +1,4 @@
+# PhotonLib ships desktop native code for x86-64 only.
+arch: x86_64
+camera: frontcam-raw
+camera: frontcam-processed

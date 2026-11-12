@@ -1,0 +1,118 @@
+diff --git a/wpigui/src/main/native/cpp/wpigui.cpp b/wpigui/src/main/native/cpp/wpigui.cpp
+index 71e6ab5..b812d2d 100644
+--- a/wpigui/src/main/native/cpp/wpigui.cpp
++++ b/wpigui/src/main/native/cpp/wpigui.cpp
+@@ -14,6 +14,10 @@
+ #include <thread>
+ #include <utility>
+ 
++#ifdef __EMSCRIPTEN__
++#include <emscripten.h>
++extern "C" int websim_font_density(void);
++#endif
+ #include <GLFW/glfw3.h>
+ #include <IconsFontAwesome6.h>
+ #include <imgui.h>
+@@ -180,7 +184,10 @@ void gui::SetCurrentContext(Context* context) {
+ static void UpdateFontScale() {
+   // Scale based on OS window content scaling
+   float windowScale = 1.0;
+-#ifndef __APPLE__
++  // In a browser, as on macOS, window coordinates are logical (CSS) pixels
++  // and the framebuffer carries the device pixel ratio, so the content scale
++  // must not enlarge fonts a second time.
++#if !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
+   glfwGetWindowContentScale(gContext->window, &windowScale, nullptr);
+ #endif
+   // map to closest font size: 0 = 0.5x, 1 = 0.75x, 2 = 1.0x, 3 = 1.25x,
+@@ -206,6 +213,16 @@ static void ReloadFonts() {
+   for (auto&& makeFont : gContext->makeFonts) {
+     if (makeFont.func) {
+       ImFontConfig cfg;
++#ifdef __EMSCRIPTEN__
++      // On a HiDPI screen the framebuffer has more pixels than the logical
++      // size the glyphs are laid out in. Rasterize them at that density so
++      // text stays sharp; layout is unaffected, and at 1x nothing changes.
++      int density = websim_font_density();
++      if (density > 1) {
++        cfg.OversampleH = cfg.OversampleH > density ? cfg.OversampleH : density;
++        cfg.OversampleV = density;
++      }
++#endif
+       std::snprintf(cfg.Name, sizeof(cfg.Name), "%s", makeFont.name.c_str());
+       bool isDefault = makeFont.name == gContext->defaultFontName;
+       if (!makeFont.defaultOnly || isDefault) {
+@@ -215,6 +232,12 @@ static void ReloadFonts() {
+           static const ImWchar icons_ranges[] = {ICON_MIN_FA, ICON_MAX_16_FA,
+                                                  0};
+           ImFontConfig icons_cfg;
++#ifdef __EMSCRIPTEN__
++          if (density > 1) {
++            icons_cfg.OversampleH = density;
++            icons_cfg.OversampleV = density;
++          }
++#endif
+           icons_cfg.MergeMode = true;
+           icons_cfg.PixelSnapH = true;
+           ImGui::AddFontFontAwesomeSolid(io, size, &icons_cfg, icons_ranges);
+@@ -316,7 +339,7 @@ bool gui::Initialize(const char* title, int width, int height,
+   }
+ 
+   if (!gContext->loadedWidthHeight) {
+-#ifndef __APPLE__
++#if !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
+     if (windowScale == 1.0) {
+       glfwGetWindowContentScale(gContext->window, &windowScale, nullptr);
+     }
+@@ -392,6 +415,42 @@ bool gui::Initialize(const char* title, int width, int height,
+   return true;
+ }
+ 
++#ifdef __EMSCRIPTEN__
++// Web build: the browser owns the frame loop (requestAnimationFrame), so this
++// cannot block or sleep. websim_frame_wanted() implements the FPS cap and
++// redraw-on-demand; the frame body below is the same as the native loop's.
++extern "C" int websim_frame_wanted(int fps);
++
++static void EmFrame() {
++  if (!websim_frame_wanted(gContext->fps)) {
++    return;
++  }
++
++  glfwPollEvents();
++  gContext->isPlatformRendering = true;
++  UpdateFontScale();
++  if (gContext->reloadFonts) {
++    ReloadFonts();
++    // PlatformRenderFrame() will clear reloadFonts flag
++  }
++  PlatformRenderFrame();
++  gContext->isPlatformRendering = false;
++
++  auto& io = ImGui::GetIO();
++
++  // custom saving
++  if (gContext->saveSettings) {
++    if (io.WantSaveIniSettings) {
++      gContext->saveSettings(false);
++      io.WantSaveIniSettings = false;  // reset flag
++    }
++  }
++}
++
++void gui::Main() {
++  emscripten_set_main_loop(EmFrame, 0, true);
++}
++#else
+ void gui::Main() {
+   // Main loop
+   while (!glfwWindowShouldClose(gContext->window) && !gContext->exit) {
+@@ -448,6 +507,8 @@ void gui::Main() {
+   glfwTerminate();
+ }
+ 
++#endif  // __EMSCRIPTEN__
++
+ void gui::CommonRenderFrame() {
+   ImGui_ImplGlfw_NewFrame();
+ 

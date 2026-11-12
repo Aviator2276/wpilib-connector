@@ -1,0 +1,9 @@
+# Upstream files deleted from the checkout before building (libuv/JNI-only
+# code that has no browser equivalent). One path per line, relative to the
+# allwpilib root. A missing path fails the build so drift is noticed.
+ntcore/src/main/native/cpp/NetworkServer.cpp
+ntcore/src/main/native/cpp/net/WebSocketConnection.cpp
+ntcore/src/main/native/cpp/net/WebSocketConnection.h
+ntcore/src/main/native/cpp/net3/UvStreamConnection3.cpp
+ntcore/src/main/native/cpp/net3/UvStreamConnection3.h
+ntcore/src/main/native/cpp/ntcore_test.cpp
