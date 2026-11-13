@@ -121,7 +121,10 @@ All paths are relative to the app base.
 | WS | `/hal` | HAL relay |
 | GET | `/cam/<port>/stream.mjpg` | MJPEG proxy; only ports advertised in NT or 1181–1190 |
 
-- **Detection.** Once a second it tries the NT port. On success it finds the
+- **Detection.** Once a second it looks for a listener on the NT port in the
+  kernel's socket table (`/proc/net/tcp{,6}`) rather than connecting: the
+  robot logs every NetworkTables connection, so a connecting probe would
+  print a line per second in the student's terminal. It then finds the
   listening process through `/proc`, takes its working directory as the
   project (if it has `.wpilib/wpilib_preferences.json`), reads the GradleRIO
   version from `build.gradle`, and picks the matching GUI bundle.

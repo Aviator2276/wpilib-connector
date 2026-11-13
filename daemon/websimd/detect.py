@@ -33,6 +33,22 @@ async def port_open(host: str, port: int, timeout: float = 0.5) -> bool:
     return True
 
 
+async def is_listening(host: str, port: int) -> bool:
+    """Whether the robot program has `port` open, without connecting to it.
+
+    The robot's NetworkTables server logs every connection, so a probe that
+    connects once a second floods the student's console with
+    "Got a NT4 connection" lines. On Linux, for the loopback robot, the
+    kernel's socket table answers the question silently. Anywhere else (tests,
+    a robot on another host) there is nothing better than a connection.
+    """
+    if host in ("127.0.0.1", "localhost", "::1"):
+        listening = procfs.port_listening(port)
+        if listening is not None:
+            return listening
+    return await port_open(host, port)
+
+
 def is_robot_project(path: Path) -> bool:
     return (path / ".wpilib" / "wpilib_preferences.json").is_file()
 
@@ -77,7 +93,7 @@ def choose_bundle(bundles: list[str], wpilib_version: str | None) -> str | None:
 
 
 class SimDetector:
-    """Polls for the robot's NetworkTables server once a second."""
+    """Looks for the robot's NetworkTables server once a second."""
 
     def __init__(self, cfg: Config, status: Status) -> None:
         self.cfg = cfg
@@ -97,7 +113,7 @@ class SimDetector:
 
     async def poll_once(self) -> None:
         st = self.status
-        up = await port_open(self.cfg.robot_host, self.cfg.nt_port)
+        up = await is_listening(self.cfg.robot_host, self.cfg.nt_port)
         if up:
             pid, project = await asyncio.to_thread(self._locate)
             if not st.running or pid != st.pid or project != st.project:

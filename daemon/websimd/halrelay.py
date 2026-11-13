@@ -37,7 +37,7 @@ import aiohttp
 from aiohttp import WSMsgType, web
 
 from .config import Config
-from .detect import port_open
+from .detect import is_listening
 from .state import Status
 from .wsproxy import proxy_websocket
 
@@ -159,10 +159,10 @@ class HalRelay:
                 try:
                     if not self.status.running:
                         pass
-                    elif await port_open(self.cfg.robot_host, self.cfg.bridge_port):
+                    elif await is_listening(self.cfg.robot_host, self.cfg.bridge_port):
                         # The bridge sends no HAL data on its control path.
                         await self._run_upstream(self._bridge_url + "control", "bridge")
-                    elif await port_open(self.cfg.robot_host, self.cfg.hal_ws_port):
+                    elif await is_listening(self.cfg.robot_host, self.cfg.hal_ws_port):
                         await self._run_upstream(self._ws_url, "ws")
                 except (aiohttp.ClientError, OSError, TimeoutError) as e:
                     log.debug("HAL upstream: %s", e)

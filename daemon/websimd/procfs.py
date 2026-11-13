@@ -35,6 +35,17 @@ def _listening_inodes(port: int) -> set[str]:
     return inodes
 
 
+def port_listening(port: int) -> bool | None:
+    """Whether some process listens on `port`, read from the socket tables.
+
+    None when the tables are not available (not Linux), in which case the
+    caller has to find out some other way.
+    """
+    if not (PROC / "net" / "tcp").is_file():
+        return None
+    return bool(_listening_inodes(port))
+
+
 def pid_listening_on(port: int) -> int | None:
     """PID of a process (visible to this user) listening on `port`, if any."""
     inodes = _listening_inodes(port)

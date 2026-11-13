@@ -183,3 +183,28 @@ async def test_camera_proxy_streams_and_restricts_ports(cfg, aiohttp_server, aio
     assert (await client.get("/cam/22/stream.mjpg")).status == 403
     assert (await client.get(f"/cam/{port + 1}/stream.mjpg")).status == 403
     assert (await client.get("/cam/abc/stream.mjpg")).status == 400
+
+
+async def test_detection_does_not_connect_when_the_socket_table_is_readable(monkeypatch):
+    """The robot logs every NT connection; detection must not add one a second."""
+    from websimd import detect, procfs
+
+    async def no_connections(host, port, timeout=0.5):
+        raise AssertionError("detection opened a connection to the robot")
+
+    monkeypatch.setattr(detect, "port_open", no_connections)
+    monkeypatch.setattr(procfs, "port_listening", lambda port: port == 5810)
+    assert await detect.is_listening("127.0.0.1", 5810) is True
+    assert await detect.is_listening("127.0.0.1", 3301) is False
+
+    # without a socket table (not Linux) a connection is the only way to know
+    connected = []
+
+    async def record(host, port, timeout=0.5):
+        connected.append(port)
+        return True
+
+    monkeypatch.setattr(detect, "port_open", record)
+    monkeypatch.setattr(procfs, "port_listening", lambda port: None)
+    assert await detect.is_listening("127.0.0.1", 5810) is True
+    assert connected == [5810]
