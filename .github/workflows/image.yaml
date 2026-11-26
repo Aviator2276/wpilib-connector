@@ -7,6 +7,10 @@ on:
   pull_request:
     paths-ignore: ["docs/**", "**/*.md"]
   workflow_dispatch:
+  # Weekly rebuild, so security updates to the base image and Ubuntu packages
+  # (the JDK in particular) reach the published image without a code change.
+  schedule:
+    - cron: "17 6 * * 1"
 
 env:
   IMAGE: ghcr.io/aviator2276/wpilib-workspace
@@ -31,6 +35,10 @@ jobs:
           platforms: linux/amd64
           load: true
           tags: wpilib-workspace:dev
+          # The weekly run must not reuse cached apt layers, or it would
+          # republish the same packages it was meant to update.
+          pull: true
+          no-cache: ${{ github.event_name == 'schedule' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       # Start the image as a workspace would, simulate a robot in it, and run

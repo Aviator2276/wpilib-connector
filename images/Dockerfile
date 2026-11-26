@@ -70,7 +70,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 python3-venv \
       brotli \
       iproute2 dnsutils netcat-openbsd \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && jdk="$(dpkg-query -W -f='${Version}' openjdk-17-jdk-headless)" \
+    && { dpkg --compare-versions "$jdk" ge 17.0.21.1+2 \
+         || { echo "openjdk-17 $jdk is vulnerable to CVE-2026-114938 (Java4Shell)" >&2; exit 1; }; }
+# Java4Shell (CVE-2026-114938): out-of-bounds write in HotSpot's AVX-512 Base64
+# intrinsic. Ubuntu fixed it in 17.0.21.1+2-1~24.04.1 (USN-9155-1); the check
+# above fails the build if apt or a stale build cache yields an older JDK.
 
 # --- /opt/wpilib-websim ---------------------------------------------------------
 COPY --from=web /src/web/dist/ /opt/wpilib-websim/web/

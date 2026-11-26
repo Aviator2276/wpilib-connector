@@ -41,6 +41,12 @@ in_ws 'curl -fsS http://127.0.0.1:13300/healthz > /dev/null'
 in_ws 'test -f ~/.gradle/init.d/wpilib-websim.gradle'
 in_ws 'grep -q "\"wpilib.skipSelectSimulateExtension\": true" ~/.local/share/code-server/Machine/settings.json'
 
+echo "==> JDK"
+in_ws 'java -version 2>&1 | grep -v "Picked up"; dpkg-query -W -f="openjdk-17-jdk-headless \${Version}\n" openjdk-17-jdk-headless'
+# Java4Shell (CVE-2026-114938) is fixed from 17.0.21.1+2 (see images/Dockerfile)
+in_ws 'dpkg --compare-versions "$(dpkg-query -W -f="\${Version}" openjdk-17-jdk-headless)" ge 17.0.21.1+2' \
+  || { echo "openjdk-17 is older than 17.0.21.1+2 (CVE-2026-114938)" >&2; exit 1; }
+
 echo "==> test tooling (Node, Playwright)"
 as_root 'export DEBIAN_FRONTEND=noninteractive
   command -v node > /dev/null || { curl -fsSL https://deb.nodesource.com/setup_22.x | bash - > /dev/null 2>&1
